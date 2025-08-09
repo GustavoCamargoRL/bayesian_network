@@ -29,7 +29,48 @@ def prior_true_probabilities(nodes, edges, priors):
             marginals[node] = prob_true
     return marginals
 
+def netBayes(nodes, edges, priors, evidence):
+    """
+    Compute the posterior probability of each node being True given evidence.
+    """
 
+    def get_parents(node):
+        return [edge[0] for edge in edges if edge[1] == node]
+
+    # All variables not in evidence
+    hidden_nodes = [n for n in nodes if n not in evidence]
+
+    # Generate all possible assignments for hidden nodes
+    assignments = list(product([True, False], repeat=len(hidden_nodes)))
+
+    # For each node, sum probabilities where node is True
+    posteriors = {}
+    for node in nodes:
+        num = 0.0
+        denom = 0.0
+        for assign in assignments:
+            full_state = evidence.copy()
+            for n, v in zip(hidden_nodes, assign):
+                full_state[n] = v
+            # Calculate joint probability for this assignment
+            joint = 1.0
+            for n in nodes:
+                parents = get_parents(n)
+                if not parents:
+                    prob = priors[(n, full_state[n])]
+                else:
+                    parent_vals = tuple(full_state[p] for p in parents)
+                    prob = priors[(n,) + parent_vals] if full_state[n] else 1 - priors[(n,) + parent_vals]
+                joint *= prob
+            if full_state[node]:
+                num += joint
+            denom += joint
+        # For evidence nodes, posterior is 1.0 if True, 0.0 if False
+        if node in evidence:
+            posteriors[node] = 1.0 if evidence[node] else 0.0
+        else:
+            posteriors[node] = num / denom if denom > 0 else 0.0
+    return posteriors
 
 nodes = ['A', 'B', 'C', 'D', 'E']
 edges = [('A', 'C'), ('B', 'C'), ('B', 'D'), ('C', 'E')]
@@ -52,6 +93,10 @@ priors = {
     ('E', True): 0.15,  # E | C=True
     ('E', False): 0.95  # E | C=False
 }
+
+evidence = {'A': True, 'C': True}
+posteriors = netBayes(nodes, edges, priors, evidence)
+print(posteriors)
 
 prior_probs = prior_true_probabilities(nodes, edges, priors)
 print(prior_probs)
