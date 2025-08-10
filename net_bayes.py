@@ -73,6 +73,25 @@ def netBayes(nodes, edges, priors, evidence):
             posteriors[node] = num / denom if denom > 0 else 0.0 # Posterior probability of node being True is equal to the ratio of all True assignments to all assignments
     return posteriors
 
+def joint_probability(nodes, edges, priors, assignment):
+    """
+    Calculate the joint probability of a full assignment of all nodes.
+    assignment: dict {node: True/False, ...}
+    """
+    def get_parents(node):
+        return [edge[0] for edge in edges if edge[1] == node]
+
+    joint = 1.0
+    for node in nodes:
+        parents = get_parents(node)
+        if not parents:
+            prob = priors[(node, assignment[node])]
+        else:
+            parent_vals = tuple(assignment[p] for p in parents)
+            prob = priors[(node,) + parent_vals] if assignment[node] else 1 - priors[(node,) + parent_vals]
+        joint *= prob
+    return joint
+
 nodes = ['A', 'B', 'C', 'D', 'E']
 edges = [('A', 'C'), ('B', 'C'), ('B', 'D'), ('C', 'E')]
 # Prior and conditional probabilities
@@ -95,9 +114,15 @@ priors = {
     ('E', False): 0.95  # E | C=False
 }
 
-evidence = {'E': False}
-posteriors = netBayes(nodes, edges, priors, evidence)
-print(posteriors)
+assignment = {'A': True, 'B': False, 'C': True, 'D': True, 'E': False}
+evidence = {'A': True, 'C': True}
 
 prior_probs = prior_true_probabilities(nodes, edges, priors)
 print(prior_probs)
+
+posteriors = netBayes(nodes, edges, priors, evidence)
+print(posteriors)
+
+overall_prob = joint_probability(nodes, edges, priors, assignment)
+print("Joint probability of evidence:", overall_prob)
+
