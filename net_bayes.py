@@ -1,7 +1,5 @@
-# Bayesian Network Inference for Reliability Analysis
-
+import numpy as np
 from itertools import product
-
 
 def prior_true_probabilities(nodes, edges, priors):
     # Helper to get parents of a node
@@ -94,37 +92,110 @@ def joint_probability(nodes, edges, priors, assignment):
         joint *= prob
     return joint
 
-nodes = ['A', 'B', 'C', 'D', 'E']
-edges = [('A', 'C'), ('B', 'C'), ('B', 'D'), ('C', 'E')]
+nodes = ['D11', 'D12', 'D21', 'D22', 'D1', 'D2', 
+         'M1', 'M2', 'M3', 'M13', 'M23', 
+         'N', 'P1', 'P2', 'S1', 'S2', 'S12', 'TE'] #nodes = ['A', 'B', 'C', 'D', 'E']
+edges = [('D11', 'D1'), ('D12', 'D1'), ('D21', 'D2'), ('D22', 'D2'),
+         ('M1', 'M13'), ('M3', 'M13'), ('M2', 'M23'), ('M3', 'M23'),
+         ('P1', 'S1'), ('P2','S2'), ('D1','S1'), ('D2','S2'), 
+         ('M13','S1'), ('M23','S2'), ('S1','S12'), ('S2','S12'), 
+         ('S12','TE'), ('N','TE')] 
+
+t = 5000 # time
+lambda_D = 8e-5 # Disk failure rate
+lambda_M = 3e-8 # Memory failure rate
+lambda_N = 2e-9 # Bus failure rate
+lambda_P = 5e-7 # Processor failure rate
+
 # Prior and conditional probabilities
 priors = {
     # Marginal probabilities for root nodes
-    ('A', True): 0.8,
-    ('A', False): 0.2,
-    ('B', True): 0.1,
-    ('B', False): 0.9,
-    # Conditional probabilities for C given A and B
-    ('C', True, True): 0.9,    # C | A=True, B=True
-    ('C', True, False): 0.75,  # C | A=True, B=False
-    ('C', False, True): 0.6,   # C | A=False, B=True
-    ('C', False, False): 0.05, # C | A=False, B=False
-    # Conditional probabilities for D given B
-    ('D', True): 0.2,   # D | B=True
-    ('D', False): 0.75, # D | B=False
-    # Conditional probabilities for E given C
-    ('E', True): 0.15,  # E | C=True
-    ('E', False): 0.95  # E | C=False
+    ('D11', True): 1 - np.exp(-lambda_D*t),
+    ('D11', False): np.exp(-lambda_D*t),
+    ('D12', True): 1 - np.exp(-lambda_D*t),
+    ('D12', False): np.exp(-lambda_D*t),
+    ('D21', True): 1 - np.exp(-lambda_D*t),
+    ('D21', False): np.exp(-lambda_D*t),
+    ('D22', True): 1 - np.exp(-lambda_D*t),
+    ('D22', False): np.exp(-lambda_D*t),
+    ('M1', True): 1- np.exp(-lambda_M*t),
+    ('M1', False): np.exp(-lambda_M*t),
+    ('M2', True): 1 - np.exp(-lambda_M*t),
+    ('M2', False):np.exp(-lambda_M*t),
+    ('M3', True): 1 - np.exp(-lambda_M*t),
+    ('M3', False):np.exp(-lambda_M*t),
+    ('N', True): 1 - np.exp(-lambda_N*t),
+    ('N', False): np.exp(-lambda_N*t),
+    ('P1', True): 1 - np.exp(-lambda_P*t),
+    ('P1', False): np.exp(-lambda_P*t),
+    ('P2', True): 1 - np.exp(-lambda_P*t),
+    ('P2', False): np.exp(-lambda_P*t),
+
+    # Conditional probabilities for D1 given D11 and D12 (AND gate)
+    ('D1', True, True): 1,   
+    ('D1', True, False): 0,  
+    ('D1', False, True): 0,  
+    ('D1', False, False): 0, 
+    # Conditional probabilities for D2 given D21 and D22 (AND gate)
+    ('D2', True, True): 1,   
+    ('D2', True, False): 0,  
+    ('D2', False, True): 0,  
+    ('D2', False, False): 0, 
+    # Conditional probabilities for M13 given M1 and M3 (AND gate)
+    ('M13', True, True): 1,   
+    ('M13', True, False): 0,  
+    ('M13', False, True): 0,  
+    ('M13', False, False): 0, 
+    # Conditional probabilities for M23 given M2 and M3 (AND gate)
+    ('M23', True, True): 1,   
+    ('M23', True, False): 0,  
+    ('M23', False, True): 0,  
+    ('M23', False, False): 0, 
+    # Conditional probabilities for S1 given D1, M13, and P1 (OR gate)
+    ('S1', True, True, True): 1,   
+    ('S1', True, True, False): 1,  
+    ('S1', True, False, True): 1,  
+    ('S1', True, False, False): 1,
+    ('S1', False, True, True): 1,   
+    ('S1', False, True, False): 1,  
+    ('S1', False, False, True): 1,  
+    ('S1', False, False, False): 0, 
+    # Conditional probabilities for S2 given D2, M23, and P2 (OR gate)
+    ('S2', True, True, True): 1,   
+    ('S2', True, True, False): 1,  
+    ('S2', True, False, True): 1,  
+    ('S2', True, False, False): 1,
+    ('S2', False, True, True): 1,   
+    ('S2', False, True, False): 1,  
+    ('S2', False, False, True): 1,  
+    ('S2', False, False, False): 0,
+    # Conditional probabilities for S12 given S1 and S3 (AND gate)
+    ('S12', True, True): 1,   
+    ('S12', True, False): 0,  
+    ('S12', False, True): 0,  
+    ('S12', False, False): 0,  
+    # Conditional probabilities for TE given N and S12 (OR gate)
+    ('TE', True, True): 1,   
+    ('TE', True, False): 1,  
+    ('TE', False, True): 1,  
+    ('TE', False, False): 0,
 }
 
-assignment = {'A': True, 'B': False, 'C': True, 'D': True, 'E': False}
-evidence = {'A': True, 'C': True}
+
+# assignment = {'A': True, 'B': False, 'C': True, 'D': True, 'E': False}
+evidence = {'TE': True}
 
 prior_probs = prior_true_probabilities(nodes, edges, priors)
-print(prior_probs)
+print(f"Prior probabilities:\n")
+for key, value in prior_probs.items():
+    print(f"{key}: {value:.12f}")
 
 posteriors = netBayes(nodes, edges, priors, evidence)
-print(posteriors)
+print(f"Posterior probabilities given the evidence TE:\n")
+for key, value in posteriors.items():
+    print(f"{key}: {value:.12f}")
 
-overall_prob = joint_probability(nodes, edges, priors, assignment)
-print("Joint probability of evidence:", overall_prob)
+
+# overall_prob = joint_probability(nodes, edges, priors, assignment)
+# print("Joint probability of evidence:", overall_prob)
 
