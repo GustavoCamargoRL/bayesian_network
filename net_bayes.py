@@ -1,3 +1,5 @@
+# Bayesian Network Inference for Reliability Analysis
+
 from itertools import product
 
 
