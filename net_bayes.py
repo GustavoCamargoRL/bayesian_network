@@ -92,108 +92,130 @@ def joint_probability(nodes, edges, priors, assignment):
         joint *= prob
     return joint
 
-nodes = ['D11', 'D12', 'D21', 'D22', 'D1', 'D2', 
-         'M1', 'M2', 'M3', 'M13', 'M23', 
-         'N', 'P1', 'P2', 'S1', 'S2', 'S12', 'TE'] #nodes = ['A', 'B', 'C', 'D', 'E']
-edges = [('D11', 'D1'), ('D12', 'D1'), ('D21', 'D2'), ('D22', 'D2'),
-         ('M1', 'M13'), ('M3', 'M13'), ('M2', 'M23'), ('M3', 'M23'),
-         ('P1', 'S1'), ('P2','S2'), ('D1','S1'), ('D2','S2'), 
-         ('M13','S1'), ('M23','S2'), ('S1','S12'), ('S2','S12'), 
-         ('S12','TE'), ('N','TE')] 
+def noisy_or(probabilities):
+    """
+    Calculate the probability of at least one event occurring given individual probabilities.
+    probabilities: list of probabilities [p1, p2, ..., pn]
+    """
+    prod = 1.0
+    for p in probabilities:
+        prod *= (1 - p)
+    return 1 - prod
 
-t = 5000 # time
-lambda_D = 8e-5 # Disk failure rate
-lambda_M = 3e-8 # Memory failure rate
-lambda_N = 2e-9 # Bus failure rate
-lambda_P = 5e-7 # Processor failure rate
+def noisy_and(probabilities):
+    """
+    Calculate the probability of all events occurring given individual probabilities.
+    probabilities: list of probabilities [p1, p2, ..., pn]
+    """
+    prod = 1.0
+    for p in probabilities:
+        prod *= p
+    return prod
+
+def prior_with_noisy_nodes(nodes, edges, priors, noisy_nodes):
+    """
+    Compute prior probabilities considering noisy nodes.
+    noisy_nodes: dict {node: 'AND'/'OR', ...}
+    """
+    def get_parents(node):
+        return [edge[0] for edge in edges if edge[1] == node]
+
+    marginals = {}
+    for node in nodes:
+        parents = get_parents(node)
+        if not parents:
+            marginals[node] = priors[(node, True)]
+        else:
+            combos = list(product([True, False], repeat=len(parents)))
+            prob_true = 0.0
+            for combo in combos:
+                parent_prob = 1.0
+                for p, val in zip(parents, combo):
+                    parent_prob *= marginals[p] if val else (1 - marginals[p])
+                if node in noisy_nodes:
+                    probs = [priors[(p, True)] if val else 0.0 for p, val in zip(parents, combo)]
+                    if noisy_nodes[node] == 'AND':
+                        prob_node_true = noisy_and(probs)
+                    elif noisy_nodes[node] == 'OR':
+                        prob_node_true = noisy_or(probs)
+                    else:
+                        raise ValueError("Noisy node must be 'AND' or 'OR'")
+                else:
+                    key = (node,) + combo
+                    prob_node_true = priors[key]
+                prob_true += parent_prob * prob_node_true
+            marginals[node] = prob_true
+    return marginals
+
+def Beta(a, b):
+    return (a/(a+b))
+
+def noisy_priors(nodes_with_no_parents, nodes_distributions):
+    priors = {}
+    for node in nodes_with_no_parents:
+        if (node, 'Beta') in nodes_distributions:
+            a, b = nodes_distributions[(node, 'Beta')]
+            priors[(node, True)] = Beta(a, b)
+            priors[(node, False)] = 1 - priors[(node, True)]
+        else:
+            raise ValueError(f"No distribution found for node {node}")
+    return priors
+
+
+def noisy_conditional_probabilities(nodes, priors, edges):
+    def get_parents(node):
+        return [edge[0] for edge in edges if edge[1] == node]
+
+    conditional_priors = {}
+    for node in nodes:
+        parents = get_parents(node)
+        if parents:
+            combos = list(product([True, False], repeat=len(parents)))
+            for combo in combos:
+                key = (node,) + combo
+                if key in priors:
+                    conditional_priors[key] = priors[key]
+                else:
+                    raise ValueError(f"No prior found for key {key}")
+    return conditional_priors
+
+root_nodes = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 
+              'E7', 'E8', 'E9'] #root_nodes = ['A', 'B']
+
+nodes_distributions = {
+    ('E1', 'Beta') : [1.1,75.69] , ('E2', 'Beta'): [1.1,85.40], ('E3', 'Beta'): [1.1,85.40], ('E4', 'Beta'): [1.1,86.95], ('E5', 'Beta'): [1.1,86.95],
+    ('E6', 'Beta'): [1.89,159.93], ('E7', 'Beta'): [1.15,123.01], ('E8', 'Beta'): [2.41,149.22], ('E9', 'Beta'): [5.24,192.90]}
+
+nodes = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 
+         'E7', 'E8', 'E9', 'SF', 'VSF', 
+         'SFP', 'CAT', 'VF'] #nodes = ['A', 'B', 'C', 'D', 'E']
+edges = [('CAT', 'E1'), ('VSF', 'E2'), ('VSF', 'E3'), ('VSF', 'E4'),
+         ('VSF', 'E5'), ('SF', 'E6'), ('SF', 'E7'), ('SF', 'E8'),
+         ('SFP', 'E9'), ('CAT','VSF'), ('SFP','SF'), ('VF','CAT'), 
+         ('VF','SFP')] #parents = [('son1', 'father'), ('son2', 'father')] 
+
+
+
 
 # Prior and conditional probabilities
-priors = {
+priors = noisy_priors(root_nodes, nodes_distributions)
     # Marginal probabilities for root nodes
-    ('D11', True): 1 - np.exp(-lambda_D*t),
-    ('D11', False): np.exp(-lambda_D*t),
-    ('D12', True): 1 - np.exp(-lambda_D*t),
-    ('D12', False): np.exp(-lambda_D*t),
-    ('D21', True): 1 - np.exp(-lambda_D*t),
-    ('D21', False): np.exp(-lambda_D*t),
-    ('D22', True): 1 - np.exp(-lambda_D*t),
-    ('D22', False): np.exp(-lambda_D*t),
-    ('M1', True): 1- np.exp(-lambda_M*t),
-    ('M1', False): np.exp(-lambda_M*t),
-    ('M2', True): 1 - np.exp(-lambda_M*t),
-    ('M2', False):np.exp(-lambda_M*t),
-    ('M3', True): 1 - np.exp(-lambda_M*t),
-    ('M3', False):np.exp(-lambda_M*t),
-    ('N', True): 1 - np.exp(-lambda_N*t),
-    ('N', False): np.exp(-lambda_N*t),
-    ('P1', True): 1 - np.exp(-lambda_P*t),
-    ('P1', False): np.exp(-lambda_P*t),
-    ('P2', True): 1 - np.exp(-lambda_P*t),
-    ('P2', False): np.exp(-lambda_P*t),
-
-    # Conditional probabilities for D1 given D11 and D12 (AND gate)
-    ('D1', True, True): 1,   
-    ('D1', True, False): 0,  
-    ('D1', False, True): 0,  
-    ('D1', False, False): 0, 
-    # Conditional probabilities for D2 given D21 and D22 (AND gate)
-    ('D2', True, True): 1,   
-    ('D2', True, False): 0,  
-    ('D2', False, True): 0,  
-    ('D2', False, False): 0, 
-    # Conditional probabilities for M13 given M1 and M3 (AND gate)
-    ('M13', True, True): 1,   
-    ('M13', True, False): 0,  
-    ('M13', False, True): 0,  
-    ('M13', False, False): 0, 
-    # Conditional probabilities for M23 given M2 and M3 (AND gate)
-    ('M23', True, True): 1,   
-    ('M23', True, False): 0,  
-    ('M23', False, True): 0,  
-    ('M23', False, False): 0, 
-    # Conditional probabilities for S1 given D1, M13, and P1 (OR gate)
-    ('S1', True, True, True): 1,   
-    ('S1', True, True, False): 1,  
-    ('S1', True, False, True): 1,  
-    ('S1', True, False, False): 1,
-    ('S1', False, True, True): 1,   
-    ('S1', False, True, False): 1,  
-    ('S1', False, False, True): 1,  
-    ('S1', False, False, False): 0, 
-    # Conditional probabilities for S2 given D2, M23, and P2 (OR gate)
-    ('S2', True, True, True): 1,   
-    ('S2', True, True, False): 1,  
-    ('S2', True, False, True): 1,  
-    ('S2', True, False, False): 1,
-    ('S2', False, True, True): 1,   
-    ('S2', False, True, False): 1,  
-    ('S2', False, False, True): 1,  
-    ('S2', False, False, False): 0,
-    # Conditional probabilities for S12 given S1 and S3 (AND gate)
-    ('S12', True, True): 1,   
-    ('S12', True, False): 0,  
-    ('S12', False, True): 0,  
-    ('S12', False, False): 0,  
-    # Conditional probabilities for TE given N and S12 (OR gate)
-    ('TE', True, True): 1,   
-    ('TE', True, False): 1,  
-    ('TE', False, True): 1,  
-    ('TE', False, False): 0,
-}
-
+#    ('D11', True): 1 - np.exp(-lambda_D*t),
+#    ('D11', False): np.exp(-lambda_D*t),
+print(noisy_conditional_probabilities(nodes, priors, edges))
 
 # assignment = {'A': True, 'B': False, 'C': True, 'D': True, 'E': False}
-evidence = {'TE': True}
+#evidence = {'TE': True}
 
-prior_probs = prior_true_probabilities(nodes, edges, priors)
-print(f"Prior probabilities:\n")
-for key, value in prior_probs.items():
-    print(f"{key}: {value:.12f}")
+#prior_probs = prior_true_probabilities(nodes, edges, priors)
+#print(f"Prior probabilities:\n")
+#for key, value in prior_probs.items():
+#    print(f"{key}: {value:.12f}")
 
-posteriors = netBayes(nodes, edges, priors, evidence)
-print(f"Posterior probabilities given the evidence TE:\n")
-for key, value in posteriors.items():
-    print(f"{key}: {value:.12f}")
+#posteriors = netBayes(nodes, edges, priors, evidence)
+#print(f"Posterior probabilities given the evidence TE:\n")
+#for key, value in posteriors.items():
+#    print(f"{key}: {value:.12f}")
 
 
 # overall_prob = joint_probability(nodes, edges, priors, assignment)
