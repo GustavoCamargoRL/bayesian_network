@@ -162,23 +162,6 @@ def noisy_priors(nodes_with_no_parents, nodes_distributions):
     return priors
 
 
-def noisy_conditional_probabilities(nodes, priors, edges):
-    def get_parents(node):
-        return [edge[0] for edge in edges if edge[1] == node]
-
-    conditional_priors = {}
-    for node in nodes:
-        parents = get_parents(node)
-        if parents:
-            combos = list(product([True, False], repeat=len(parents)))
-            for combo in combos:
-                key = (node,) + combo
-                if key in priors:
-                    conditional_priors[key] = priors[key]
-                else:
-                    raise ValueError(f"No prior found for key {key}")
-    return conditional_priors
-
 root_nodes = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 
               'E7', 'E8', 'E9'] #root_nodes = ['A', 'B']
 
@@ -202,7 +185,7 @@ priors = noisy_priors(root_nodes, nodes_distributions)
     # Marginal probabilities for root nodes
 #    ('D11', True): 1 - np.exp(-lambda_D*t),
 #    ('D11', False): np.exp(-lambda_D*t),
-print(noisy_conditional_probabilities(nodes, priors, edges))
+print(priors)
 
 # assignment = {'A': True, 'B': False, 'C': True, 'D': True, 'E': False}
 #evidence = {'TE': True}
