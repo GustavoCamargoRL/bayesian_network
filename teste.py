@@ -203,7 +203,7 @@ priors = update_child_priors(priors, intermed_priors, nodes, noisy_nodes)
 print("Initial priors:", priors, "\n")
 
 # Example: set evidence
-evidence = {'E2': False, 'E7': False}
+evidence = {'VF': True, 'E7': False}
 priors, intermed_priors = update_network(priors, nodes, noisy_nodes, non_root_nodes, evidence)
 
 print("Priors after evidence:", priors, "\n")
