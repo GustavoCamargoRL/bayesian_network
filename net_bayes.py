@@ -93,12 +93,12 @@ def joint_probability(nodes, edges, priors, assignment):
     return joint
 
 nodes = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 
-         'E7', 'E8', 'E9', 'CAT', 'VSF', 
+         'E7', 'E8', 'E9', 'VSF' ,'CAT', 
          'SRF', 'SGF', 'TE'] #nodes = ['A', 'B', 'C', 'D', 'E']
-edges = [('CAT', 'E1'), ('CAT', 'VSF'), ('VSF', 'E2'), ('VSF', 'E3'),
-         ('VSF', 'E4'), ('VSF', 'E5'), ('SRF', 'E6'), ('SRF', 'E7'),
-         ('SRF', 'E8'), ('SGF','SRF'), ('SGF','E9'), ('TE','CAT'), 
-         ('TE','SGF')] 
+edges = [('E2', 'VSF'), ('E3', 'VSF'),
+         ('E4', 'VSF'), ('E5', 'VSF'), ('E1', 'CAT'), ('VSF', 'CAT'), ('E6', 'SRF'), ('E7', 'SRF'),
+         ('E8', 'SRF'), ('SRF','SGF'), ('E9','SGF'), ('CAT','TE'), 
+         ('SGF','TE')] 
 
 #t = 5000 # time
 #lambda_D = 8e-5 # Disk failure rate
@@ -112,43 +112,43 @@ def beta_mean(a, b):
 # Prior and conditional probabilities
 priors = {
     # Marginal probabilities for root nodes
-    ('E1', True): 1 - beta_mean(1.99, 72.22),
-    ('E1', False): beta_mean(1.99, 72.22),
-    ('E2', True): 1 - beta_mean(1.11, 58.23),
-    ('E2', False): beta_mean(1.11, 58.23),
-    ('E3', True): 1 - beta_mean(1.1,58.09),
-    ('E3', False): beta_mean(1.1,58.09),
-    ('E4', True): 1 - beta_mean(1.34,69.45),
-    ('E4', False): beta_mean(1.34,69.45),
-    ('E5', True): 1- beta_mean(1.1,96.95),
-    ('E5', False): beta_mean(1.1,96.95),
-    ('E6', True): 1 - beta_mean(1.89,159.93),
-    ('E6', False):beta_mean(1.89,159.93),
-    ('E7', True): 1 - beta_mean(1.15,123.01),
-    ('E7', False):beta_mean(1.15,123.01),
-    ('E8', True): 1 - beta_mean(2.41,149.22),
-    ('E8', False): beta_mean(2.41,149.22),
-    ('E9', True): 1 - beta_mean(1.86,27.23),
-    ('E9', False): beta_mean(1.86,27.23),
+    ('E1', True): beta_mean(1.99, 72.22),
+    ('E1', False):1 -  beta_mean(1.99, 72.22),
+    ('E2', True): beta_mean(1.11, 58.23),
+    ('E2', False):1 -  beta_mean(1.11, 58.23),
+    ('E3', True): beta_mean(1.1,58.09),
+    ('E3', False):1 -  beta_mean(1.1,58.09),
+    ('E4', True): beta_mean(1.34,69.45),
+    ('E4', False):1 -  beta_mean(1.34,69.45),
+    ('E5', True): beta_mean(1.1,96.95),
+    ('E5', False):1 -  beta_mean(1.1,96.95),
+    ('E6', True): beta_mean(1.89,159.93),
+    ('E6', False):1 - beta_mean(1.89,159.93),
+    ('E7', True): beta_mean(1.15,123.01),
+    ('E7', False):1 - beta_mean(1.15,123.01),
+    ('E8', True): beta_mean(2.41,149.22),
+    ('E8', False):1 -  beta_mean(2.41,149.22),
+    ('E9', True): beta_mean(1.86,27.23),
+    ('E9', False):1 -  beta_mean(1.86,27.23),
 
 
     # Conditional probabilities for D1 given D11 and D12 (AND gate)
-    ('CAT', True, True): 0,   
+    ('CAT', True, True): 1,   
     ('CAT', True, False): 1,  
     ('CAT', False, True): 1,  
-    ('CAT', False, False): 1, 
+    ('CAT', False, False): 0, 
 
     # Conditional probabilities for S1 given D1, M13, and P1 (OR gate)
-    ('SRF', True, True, True): 0,   
+    ('SRF', True, True, True): 1,   
     ('SRF', True, True, False): 1,  
     ('SRF', True, False, True): 1,  
     ('SRF', True, False, False): 1,
     ('SRF', False, True, True): 1,   
     ('SRF', False, True, False): 1,  
     ('SRF', False, False, True): 1,  
-    ('SRF', False, False, False): 1, 
+    ('SRF', False, False, False): 0, 
     # Conditional probabilities for M13 given M1 and M3 (AND gate)
-    ('VSF', True, True, True, True): 0,   
+    ('VSF', True, True, True, True): 1,   
     ('VSF', True, True, True, False): 1,  
     ('VSF', True, True, False, True): 1,  
     ('VSF', True, True, False, False): 1, 
@@ -163,23 +163,23 @@ priors = {
     ('VSF', False, False, True, True): 1,  
     ('VSF', False, False, True, False): 1, 
     ('VSF', False, False, False, True): 1, 
-    ('VSF', False, False, False, False): 1,
+    ('VSF', False, False, False, False): 0,
     # Conditional probabilities for M23 given M2 and M3 (AND gate)
-    ('SGF', True, True): 0,   
+    ('SGF', True, True): 1,   
     ('SGF', True, False): 1,  
     ('SGF', False, True): 1,  
-    ('SGF', False, False): 1, 
+    ('SGF', False, False): 0, 
 
     # Conditional probabilities for TE given N and S12 (OR gate)
-    ('TE', True, True): 0,   
+    ('TE', True, True): 1,   
     ('TE', True, False): 1,  
     ('TE', False, True): 1,  
-    ('TE', False, False): 1,
+    ('TE', False, False): 0,
 }
 
 
 # assignment = {'A': True, 'B': False, 'C': True, 'D': True, 'E': False}
-evidence = {'D1': True}
+evidence = {'TE': True}
 
 prior_probs = prior_true_probabilities(nodes, edges, priors)
 print(f"Prior probabilities:\n")
